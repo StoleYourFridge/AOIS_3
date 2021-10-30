@@ -146,7 +146,6 @@ pair< vector<vector<bool>>, vector<vector<bool >>> transformator(string& name)
     return output;
 }
 
-
 vector<bool> digitization(int number)
 {
     vector<bool> result;
@@ -326,52 +325,59 @@ void sknfprint(vector<vector<bool>> sknfprototype)
     }
     cout << ";" << endl;
 }
-void our_own_input()
+string from_implicants_to_sdnf_string(vector<vector<pair<int, bool>>>& sdnf_implicants)
 {
-    cout << "Choose the way you want function to be entered : 1)Index form :: 2)Numeral form :: 3)Your own input ";
-    int choise;
-    string index, numeral, own_input;
-    pair< vector<vector<bool>>, vector<vector<bool >>> inputresult;
-    pair<vector<int>, vector<int>> output_numeral;
-    cin >> choise;
-    switch (choise)
+    string output;
+    for (int i = 0; i < sdnf_implicants.size(); i++)
     {
-    case 1: cout << "Enter index : ";
-        cin >> index;
-        if (!checker_for_index(index)) {
-            cout << "Enter something possible to work with!";
-            return;
+        output += "(";
+        for (int j = 0; j < sdnf_implicants[i].size(); j++)
+        {
+            if (sdnf_implicants[i][j].first == 0) {
+                if (sdnf_implicants[i][j].second) output += "a";
+                else output += "!a";
+            }
+            else if (sdnf_implicants[i][j].first == 1) {
+                if (sdnf_implicants[i][j].second) output += "b";
+                else output += "!b";
+            }
+            else if (sdnf_implicants[i][j].first == 2) {
+                if (sdnf_implicants[i][j].second) output += "c";
+                else output += "!c";
+            }
+            if (j != sdnf_implicants[i].size() - 1) output += "*";
         }
-        inputresult = index_to_skdnf(index);
-        sdnfprint(inputresult.first);
-        sknfprint(inputresult.second);
-        break;
-    case 2: cout << "Enter sdnf in numeral form : ";
-        cin.ignore();
-        getline(cin, numeral);
-        if (!checker_for_numeral(numeral)) {
-            cout << "Enter something possible to work with!";
-            return;
-        }
-        output_numeral = from_string_to_numeral(numeral);
-        inputresult = numeral_to_skdnf(output_numeral.first, output_numeral.second);
-        sdnfprint(inputresult.first);
-        sknfprint(inputresult.second);
-        break;
-    case 3: cout << "Enter your own function : ";
-        cin.ignore();
-        getline(cin, own_input);
-        if (!checker_for_own_input(own_input)) {
-            cout << "Enter something possible to work with!" << endl;
-            return;
-        }
-        inputresult = transformator(own_input);
-        sdnfprint(inputresult.first);
-        sknfprint(inputresult.second);
-        break;
-    default: cout << "Enter something possible to work with!" << endl;
-        break;
+        output += ") ";
+        if (i != sdnf_implicants.size() - 1) output += "+";
     }
+    return output;
+}
+string from_implicants_to_sknf_string(vector<vector<pair<int, bool>>>& sknf_implicants)
+{
+    string output;
+    for (int i = 0; i < sknf_implicants.size(); i++)
+    {
+        output += "(";
+        for (int j = 0; j < sknf_implicants[i].size(); j++)
+        {
+            if (sknf_implicants[i][j].first == 0) {
+                if (sknf_implicants[i][j].second) output += "!a";
+                else output += "a";
+            }
+            else if (sknf_implicants[i][j].first == 1) {
+                if (sknf_implicants[i][j].second) output += "!b";
+                else output += "b";
+            }
+            else if (sknf_implicants[i][j].first == 2) {
+                if (sknf_implicants[i][j].second) output += "!c";
+                else output += "c";
+            }
+            if (j != sknf_implicants[i].size() - 1) output += "+";
+        }
+        output += ") ";
+        if (i != sknf_implicants.size() - 1) output += "*";
+    }
+    return output;
 }
 
 bool checker_for_coincidence(vector<bool>& term_one, vector<bool>& term_two)
@@ -487,64 +493,284 @@ void calculate_method_from_skdnf(vector<vector<pair<int, bool>>> &implicants, bo
         }
     }
 }
+pair<string, string> calculate_method(vector<vector<bool>>& sdnfprototype, vector<vector<bool>>& sknfprototype)
+{
+    vector<vector<pair<int, bool>>> sdnf_implicants, sknf_implicants;
+    sdnf_implicants = gluing(sdnfprototype);
+    sknf_implicants = gluing(sknfprototype);
+    calculate_method_from_skdnf(sdnf_implicants, true);
+    calculate_method_from_skdnf(sknf_implicants, false);
+    string minimized_sdnf = from_implicants_to_sdnf_string(sdnf_implicants);
+    string minimized_sknf = from_implicants_to_sknf_string(sknf_implicants);
+    pair<string, string> result(minimized_sdnf, minimized_sknf);
+    return result;
+}
 
+bool checker_for_implicant_and_constituent(vector<bool>& constituent, vector<pair<int, bool>>& implicant)
+{
+    int counter = 0;
+    for (int i = 0; i < implicant.size(); i++)
+    {
+        if (implicant[i].second == constituent[implicant[i].first]) counter++;
+    }
+    if (counter == implicant.size()) return true;
+    else return false;
+}
+pair<vector<vector<bool>>, vector<int>> table_of_crosses(vector<vector<bool>>& sdnfprototype, vector<vector<pair<int, bool>>>& implicants)
+{
+    vector<vector<bool>> result;
+    vector<int> future_result_of_operation;
+    for (int i = 0; i < sdnfprototype.size(); i++)
+    {
+        vector<bool> line_for_constituent;
+        int summary_for_the_line = 0, unique_implicant;
+        for (int j = 0; j < implicants.size(); j++)
+        {
+            bool result_for_comparison = checker_for_implicant_and_constituent(sdnfprototype[i], implicants[j]);
+            if (result_for_comparison) unique_implicant = j;
+            line_for_constituent.push_back(result_for_comparison);
+            summary_for_the_line += result_for_comparison;
+        }
+        if (summary_for_the_line == 1) future_result_of_operation.push_back(unique_implicant);
+        else result.push_back(line_for_constituent);
+    }
+    pair<vector<vector<bool>>, vector<int>> future_result_and_table(result, future_result_of_operation);
+    return future_result_and_table;
+}
+void one_line_deleting(vector<vector<bool>>& table, int line)
+{
+    for (int i = 0; i < table.size(); i++)
+    {
+        table[i][line] = 0;
+    }
+}
+bool table_checker(vector<vector<bool>> table)
+{
+    for (int i = 0; i < table.size(); i++)
+    {
+        bool zero_sign = false;
+        for (int j = 0; j < table[i].size(); j++)
+        {
+            if (table[i][j]) {
+                zero_sign = true;
+                break;
+            }
+        }
+        if (!zero_sign) {
+            return false;
+        }
+    }
+    return true;
+}
+void creator_for_set_of_exceptions(map<int, bool>visited, vector<vector<bool>> table, int number_of_cleaning_line, vector<int>& main_line_for_result, vector<int>current_line_for_result)
+{
+    one_line_deleting(table, number_of_cleaning_line);
+    if (table_checker(table)) {
+        visited[number_of_cleaning_line] = true;
+        current_line_for_result.push_back(number_of_cleaning_line);
+        if (main_line_for_result.size() < current_line_for_result.size()) main_line_for_result = current_line_for_result;
+        for (int i = 0; i < table[0].size(); i++)
+        {
+            if (!visited[i]) creator_for_set_of_exceptions(visited, table, i, main_line_for_result, current_line_for_result);
+        }
+    }
+    else return;
+}
+vector<int> set_of_exceptions(vector<vector<bool>> table, int number_of_start_implicant, map<int, bool> visited)
+{
+    vector<int>main_line, current_line;
+    creator_for_set_of_exceptions(visited, table, number_of_start_implicant, main_line, current_line);
+    return main_line;
+}
+vector<int> result_exeption(vector<vector<bool>> table, vector<int> numbers_of_correct_implicants)
+{
+    vector<int> result;
+    map<int, bool> visited;
+    for (int i = 0; i < numbers_of_correct_implicants.size(); i++)
+    {
+        visited[numbers_of_correct_implicants[i]] = true;
+    }
+    if (table.size() != 0) {
+        for (int i = 0; i < table[0].size(); i++)
+        {
+            if (!visited[i]) {
+                vector<int> current_result = set_of_exceptions(table, i, visited);
+                if (current_result.size() > result.size()) result = current_result;
+            }
+        }
+    }
+    return result;
+}
+void exceptioned_implicants(vector<vector<pair<int, bool>>>& implicants, vector<int> exception)
+{
+    vector<vector<pair<int, bool>>> result_implicants;
+    for (int i = 0; i < implicants.size(); i++)
+    {
+        bool sign = true;
+        for (int j = 0; j < exception.size(); j++)
+        {
+            if (i == exception[j]) sign = false;
+        }
+        if (sign) result_implicants.push_back(implicants[i]);
+    }
+    implicants = result_implicants;
+}
+pair<string, string> calculate_table_method(vector<vector<bool>>& sdnfprototype, vector<vector<bool>>& sknfprototype)
+{
+    vector<vector<pair<int, bool>>> sdnf_implicants, sknf_implicants;
+    sdnf_implicants = gluing(sdnfprototype);
+    sknf_implicants = gluing(sknfprototype);
+    pair<vector<vector<bool>>, vector<int>> table_and_one_cross_implicants_sdnf = table_of_crosses(sdnfprototype, sdnf_implicants);
+    pair<vector<vector<bool>>, vector<int>> table_and_one_cross_implicants_sknf = table_of_crosses(sknfprototype, sknf_implicants);
+    string current_sdnf = from_implicants_to_sdnf_string(sdnf_implicants);
+    string current_sknf = from_implicants_to_sknf_string(sknf_implicants);
+    cout << current_sdnf << endl << current_sknf << endl;
+    vector<int> exception_sdnf = result_exeption(table_and_one_cross_implicants_sdnf.first, table_and_one_cross_implicants_sdnf.second);
+    vector<int> exception_sknf = result_exeption(table_and_one_cross_implicants_sknf.first, table_and_one_cross_implicants_sknf.second);
+    exceptioned_implicants(sdnf_implicants, exception_sdnf);
+    exceptioned_implicants(sknf_implicants, exception_sknf);
+    string minimized_sdnf = from_implicants_to_sdnf_string(sdnf_implicants);
+    string minimized_sknf = from_implicants_to_sknf_string(sknf_implicants);
+    pair<string, string> result(minimized_sdnf, minimized_sknf);
+    return result;
+}
+void our_own_input()
+{
+    cout << "Choose the way you want function to be entered : 1)Index form :: 2)Numeral form :: 3)Your own input ";
+    int choice_for_input;
+    string index, numeral, own_function;
+    pair< vector<vector<bool>>, vector<vector<bool >>> inputresult;
+    pair<vector<int>, vector<int>> output_numeral;
+    pair<string, string> output;
+    cin >> choice_for_input;
+    switch (choice_for_input)
+    {
+    case 1: cout << "Enter index : ";
+        cin >> index;
+        if (!checker_for_index(index)) {
+            cout << "Enter something possible to work with!";
+            return;
+        }
+        inputresult = index_to_skdnf(index);
+        break;
+    case 2: cout << "Enter sdnf in numeral form : ";
+        cin.ignore();
+        getline(cin, numeral);
+        if (!checker_for_numeral(numeral)) {
+            cout << "Enter something possible to work with!";
+            return;
+        }
+        output_numeral = from_string_to_numeral(numeral);
+        inputresult = numeral_to_skdnf(output_numeral.first, output_numeral.second);
+        break;
+    case 3: cout << "Enter your own function : ";
+        cin.ignore();
+        getline(cin, own_function);
+        if (!checker_for_own_input(own_function)) {
+            cout << "Enter something possible to work with!" << endl;
+            return;
+        }
+        break;
+    default: cout << "Enter something possible to work with!" << endl;
+        break;
+    }
+    int choice_for_method;
+    cout << "Choose method of minimization : 1)calculation :: 2)calculation_table :: 3)table " << endl;
+    cin >> choice_for_method;
+    switch (choice_for_method)
+    {
+    case 1:
+        sdnfprint(inputresult.first);
+        sknfprint(inputresult.second);
+        output = calculate_method(inputresult.first, inputresult.second);
+        break;
+    case 2:
+        sdnfprint(inputresult.first);
+        sknfprint(inputresult.second);
+        output = calculate_table_method(inputresult.first, inputresult.second);
+        break;
+    case 3:
+        break;
+    default: cout << "Enter something possible to work with!" << endl;
+        break;
+    }
+    cout << "Minimized sdnf form : " << output.first << endl;
+    cout << "Minimized sknf form : " << output.second << endl;
+}
+ 
+
+//
 int main()
 {
-    vector<vector<bool>> sdnfprototype{ {0,1,0}, {1,0,1}, {1,1,0}, {1,1,1} };
-    vector<vector<pair<int, bool>>> implicants = gluing(sdnfprototype);
-    for (int i = 0; i < implicants.size(); i++)
-    {
-        cout << "(";
-        for (int j = 0; j < implicants[i].size(); j++)
-        {
-            //cout << implicants[i][j].second << " <- " << implicants[i][j].first << " , ";
-            if (implicants[i][j].first == 0) {
-                if (implicants[i][j].second) cout << "!a";
-                else cout << "a";
-            }
-            else if (implicants[i][j].first == 1) {
-                if (implicants[i][j].second) cout << "!b";
-                else cout << "b";
-            }
-            else if (implicants[i][j].first == 2) {
-                if (implicants[i][j].second) cout << "!c";
-                else cout << "c";
-            }
-            if (j != implicants[i].size() - 1) cout << ",";
-        }
-        cout << ") ";
-    }
-    cout << endl << endl;
-    calculate_method_from_skdnf(implicants, false);
-    for (int i = 0; i < implicants.size(); i++)
-    {
-        cout << "(";
-        for (int j = 0; j < implicants[i].size(); j++)
-        {   
-            if (implicants[i][j].first == 0) {
-                if (implicants[i][j].second) cout << "!a";
-                else cout << "a";
-            }
-            else if (implicants[i][j].first == 1) {
-                if (implicants[i][j].second) cout << "!b";
-                else cout << "b";
-            }
-            else if (implicants[i][j].first == 2) {
-                if (implicants[i][j].second) cout << "!c";
-                else cout << "c";
-            }
-            if (j != implicants[i].size() - 1) cout << ",";
-        }
-        cout << ") ";
-    }
-    /*for (int i = 0; i < term.size(); i++)
-    {
-        for (int j = 0; j < term[i].size(); j++)
-        {
-            cout << term[i][j].second << ",";
-        }
-        cout << endl << endl;
-    }*/
-    //our_own_input();
+    our_own_input();
+    //vector<vector<bool>> sdnfprototype{ {0,0,0}, {0,0,1}, {0,1,0}, {1,0,0}, {1,1,0}, {1,1,1} };
+    //vector<vector<pair<int, bool>>> implicants = gluing(sdnfprototype);
+    //for (int i = 0; i < implicants.size(); i++)
+    //{
+    //    cout << "(";
+    //    for (int j = 0; j < implicants[i].size(); j++)
+    //    {
+    //        //cout << implicants[i][j].second << " <- " << implicants[i][j].first << " , ";
+    //        if (implicants[i][j].first == 0) {
+    //            if (implicants[i][j].second) cout << "a";
+    //            else cout << "!a";
+    //        }
+    //        else if (implicants[i][j].first == 1) {
+    //            if (implicants[i][j].second) cout << "b";
+    //            else cout << "!b";
+    //        }
+    //        else if (implicants[i][j].first == 2) {
+    //            if (implicants[i][j].second) cout << "c";
+    //            else cout << "!c";
+    //        }
+    //        if (j != implicants[i].size() - 1) cout << ",";
+    //    }
+    //    cout << ") ";
+    //}
+    //cout << endl << endl;
+    //pair<vector<vector<bool>>, vector<int>> a = table_of_crosses(sdnfprototype, implicants);
+    //vector<int> exception = result_exeption(a.first, a.second);
+    //vector<vector<pair<int, bool>>> result_implicants;
+    //for (int i = 0; i < implicants.size(); i++)
+    //{
+    //    bool sign = true;
+    //    for (int j = 0; j < exception.size(); j++)
+    //    {
+    //        if (i == exception[j]) sign = false;
+    //    }
+    //    if (sign) result_implicants.push_back(implicants[i]);
+    //}
+    //implicants = result_implicants;
+    ////calculate_method_from_skdnf(implicants, true);
+    //for (int i = 0; i < implicants.size(); i++)
+    //{
+    //    cout << "(";
+    //    for (int j = 0; j < implicants[i].size(); j++)
+    //    {   
+    //        if (implicants[i][j].first == 0) {
+    //            if (implicants[i][j].second) cout << "a";
+    //            else cout << "!a";
+    //        }
+    //        else if (implicants[i][j].first == 1) {
+    //            if (implicants[i][j].second) cout << "b";
+    //            else cout << "!b";
+    //        }
+    //        else if (implicants[i][j].first == 2) {
+    //            if (implicants[i][j].second) cout << "c";
+    //            else cout << "!c";
+    //        }
+    //        if (j != implicants[i].size() - 1) cout << ",";
+    //    }
+    //    cout << ") ";
+    //}
+    ///*for (int i = 0; i < term.size(); i++)
+    //{
+    //    for (int j = 0; j < term[i].size(); j++)
+    //    {
+    //        cout << term[i][j].second << ",";
+    //    }
+    //    cout << endl << endl;
+    //}*/
+    ////our_own_input();
     return 0;
 }

@@ -498,6 +498,9 @@ pair<string, string> calculate_method(vector<vector<bool>>& sdnfprototype, vecto
     vector<vector<pair<int, bool>>> sdnf_implicants, sknf_implicants;
     sdnf_implicants = gluing(sdnfprototype);
     sknf_implicants = gluing(sknfprototype);
+    string current_sdnf = from_implicants_to_sdnf_string(sdnf_implicants);
+    string current_sknf = from_implicants_to_sknf_string(sknf_implicants);
+    cout << current_sdnf << endl << current_sknf << endl;
     calculate_method_from_skdnf(sdnf_implicants, true);
     calculate_method_from_skdnf(sknf_implicants, false);
     string minimized_sdnf = from_implicants_to_sdnf_string(sdnf_implicants);
@@ -537,11 +540,14 @@ pair<vector<vector<bool>>, vector<int>> table_of_crosses(vector<vector<bool>>& s
     pair<vector<vector<bool>>, vector<int>> future_result_and_table(result, future_result_of_operation);
     return future_result_and_table;
 }
-void one_line_deleting(vector<vector<bool>>& table, int line)
+void one_line_deleting(vector<vector<bool>>& table, int line, int& current_amount_of_cleaning_crosses)
 {
     for (int i = 0; i < table.size(); i++)
     {
-        table[i][line] = 0;
+        if (table[i][line]) {
+            current_amount_of_cleaning_crosses++;
+            table[i][line] = 0;
+        }
     }
 }
 bool table_checker(vector<vector<bool>> table)
@@ -562,16 +568,19 @@ bool table_checker(vector<vector<bool>> table)
     }
     return true;
 }
-void creator_for_set_of_exceptions(map<int, bool>visited, vector<vector<bool>> table, int number_of_cleaning_line, vector<int>& main_line_for_result, vector<int>current_line_for_result)
+void creator_for_set_of_exceptions(map<int, bool>visited, vector<vector<bool>> table, int number_of_cleaning_line, vector<int>& main_line_for_result, vector<int>current_line_for_result, int& main_amount_of_crosses, int current_amount_of_crosses)
 {
-    one_line_deleting(table, number_of_cleaning_line);
+    one_line_deleting(table, number_of_cleaning_line, current_amount_of_crosses);
     if (table_checker(table)) {
         visited[number_of_cleaning_line] = true;
         current_line_for_result.push_back(number_of_cleaning_line);
-        if (main_line_for_result.size() < current_line_for_result.size()) main_line_for_result = current_line_for_result;
+        if ((main_line_for_result.size() < current_line_for_result.size()) && (main_amount_of_crosses < current_amount_of_crosses)) {
+            main_line_for_result = current_line_for_result;
+            main_amount_of_crosses = current_amount_of_crosses;
+        }
         for (int i = 0; i < table[0].size(); i++)
         {
-            if (!visited[i]) creator_for_set_of_exceptions(visited, table, i, main_line_for_result, current_line_for_result);
+            if (!visited[i]) creator_for_set_of_exceptions(visited, table, i, main_line_for_result, current_line_for_result, main_amount_of_crosses, current_amount_of_crosses);
         }
     }
     else return;
@@ -579,7 +588,8 @@ void creator_for_set_of_exceptions(map<int, bool>visited, vector<vector<bool>> t
 vector<int> set_of_exceptions(vector<vector<bool>> table, int number_of_start_implicant, map<int, bool> visited)
 {
     vector<int>main_line, current_line;
-    creator_for_set_of_exceptions(visited, table, number_of_start_implicant, main_line, current_line);
+    int current_amount_of_cleanning_crosses = 0, main_amount_of_cleanning_crosses = 0;
+    creator_for_set_of_exceptions(visited, table, number_of_start_implicant, main_line, current_line, main_amount_of_cleanning_crosses, current_amount_of_cleanning_crosses);
     return main_line;
 }
 vector<int> result_exeption(vector<vector<bool>> table, vector<int> numbers_of_correct_implicants)
@@ -634,6 +644,7 @@ pair<string, string> calculate_table_method(vector<vector<bool>>& sdnfprototype,
     pair<string, string> result(minimized_sdnf, minimized_sknf);
     return result;
 }
+
 void our_own_input()
 {
     cout << "Choose the way you want function to be entered : 1)Index form :: 2)Numeral form :: 3)Your own input ";

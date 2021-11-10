@@ -3,6 +3,7 @@
 #include <string>
 #include <stack>
 #include <map>
+#include <list>
 
 using namespace std;
 
@@ -383,16 +384,22 @@ string from_implicants_to_sknf_string(vector<vector<pair<int, bool>>>& sknf_impl
 bool checker_for_coincidence(vector<bool>& term_one, vector<bool>& term_two)
 {
     int counter_of_coincidence = 0;
-    if (term_one[0] == term_two[0]) counter_of_coincidence++;
-    if (term_one[1] == term_two[1]) counter_of_coincidence++;
-    if (term_one[2] == term_two[2]) counter_of_coincidence++;
-    if (counter_of_coincidence == 2) return true;
+    //if (term_one[0] == term_two[0]) counter_of_coincidence++;
+    //if (term_one[1] == term_two[1]) counter_of_coincidence++;
+    //if (term_one[2] == term_two[2]) counter_of_coincidence++;
+    for (int i = 0; i < term_one.size(); i++)
+    {
+        if(term_one[i] == term_two[i]) counter_of_coincidence++;
+    }
+    if (counter_of_coincidence == (term_one.size() - 1)) return true;
     else return false;
 }
 vector<pair<int, bool>> implicant(vector<bool>& term_one, vector<bool>& term_two)
 {
     vector<pair<int, bool>> implicant;
     pair<int, bool> example;
+    cout << endl << "term1 : " << term_one[0] << " " << term_one[1] << " " << term_one[2] << endl;
+    cout << endl << "term2 : " << term_two[0] << " " << term_two[1] << " " << term_two[2] << endl;
     for (int i = 0; i < term_one.size(); i++)
     {
         if (term_one[i] == term_two[i]) {
@@ -645,6 +652,127 @@ pair<string, string> calculate_table_method(vector<vector<bool>>& sdnfprototype,
     return result;
 }
 
+struct map_square
+{
+    bool sign;
+    int amount_of_meetings = 0;
+    vector<bool> code;
+};
+bool is_there_one_checker(vector<bool>vertical, vector<bool> horizontal, vector<vector<bool>>& sdnfprototype, vector<bool>&is_there_one)
+{
+    for (int i = 0; i < vertical.size(); i++) is_there_one.push_back(vertical[i]);
+    for (int i = 0; i < horizontal.size(); i++) is_there_one.push_back(horizontal[i]);
+    for (int i = 0; i < sdnfprototype.size(); i++)
+    {
+        if (is_there_one == sdnfprototype[i]) return true;
+    }
+    return false;
+}
+vector<vector<map_square>> karnaugh_map_builder_sdnf(vector<vector<bool>>& sdnfprototype, vector<vector<bool>>& sknfprototype)
+{
+    int constituent_size;
+    if (sdnfprototype.size() != 0) constituent_size = sdnfprototype[0].size();
+    else constituent_size = sknfprototype[0].size();
+    vector<vector<bool>> one_veriable{ {0}, {1} }, two_veriables{ {0,0}, {0,1}, {1,1}, {1,0} }, three_veriables{ {0,0,0}, {0,0,1}, {0,1,1}, {0,1,0}, {1,1,0 }, {1,1,1}, {1,0,1}, {1,0,0} }, vertical_veriables, horizontal_veriables;
+    if (constituent_size == 3) {
+        vertical_veriables = one_veriable;
+        horizontal_veriables = two_veriables;
+    }
+    else if (constituent_size == 4) {
+        vertical_veriables = two_veriables;
+        horizontal_veriables = two_veriables;
+    }
+    else if (constituent_size == 5) {
+        vertical_veriables = two_veriables;
+        horizontal_veriables = three_veriables;
+    }
+    vector<vector<map_square>> Karnaugh_map;
+    for (int i = 0; i < horizontal_veriables.size(); i++)
+    {
+        vector<map_square>example;
+        for (int j = 0; j < vertical_veriables.size(); j++)
+        {
+            map_square square;
+            vector<bool>is_there_one;
+            square.sign = is_there_one_checker(vertical_veriables[j], horizontal_veriables[i], sdnfprototype, is_there_one);
+            square.code = is_there_one;
+            example.push_back(square);
+        }
+        Karnaugh_map.push_back(example);
+    }
+    return Karnaugh_map;
+}
+vector<map_square*> neighbor_builder(int i, int j, vector<vector<map_square>>& karnaugh_map)
+{
+    vector<map_square*> neighbors;
+    int up, down, left, right;
+    if (i == 0) left = karnaugh_map.size() - 1;
+    else left = i - 1;
+    if (i == karnaugh_map.size() - 1) right = 0;
+    else right = i + 1;
+    if (j == 0) up = karnaugh_map[0].size() - 1;
+    else up = j - 1;
+    if (j == karnaugh_map[0].size() - 1) down = 0;
+    else down = j + 1;
+    if (karnaugh_map[left][j].sign) neighbors.push_back(&karnaugh_map[left][j]);
+    if (karnaugh_map[i][down].sign) neighbors.push_back(&karnaugh_map[i][down]);
+    if (karnaugh_map[right][j].sign) neighbors.push_back(&karnaugh_map[right][j]);
+    if (karnaugh_map[i][up].sign) neighbors.push_back(&karnaugh_map[i][up]);
+    return neighbors;
+}
+void compare_with_neighbors(int i, int j, vector<vector<map_square>>& karnaugh_map, vector<vector<pair<int, bool>>> &result)
+{
+    vector<map_square*> neighbors = neighbor_builder(i, j, karnaugh_map);
+    if (neighbors.size() == 0) {
+        result.push_back(implicant(karnaugh_map[i][j].code, karnaugh_map[i][j].code));
+    }
+    else {
+        bool overlap = false;
+        pair<int, map_square*> minimum_meetings(neighbors[0]->amount_of_meetings, neighbors[0]);
+        for (int k = 0; k < neighbors.size(); k++)
+        {
+            if (neighbors[k]->amount_of_meetings == 0) {
+                overlap = true;
+                result.push_back(implicant(karnaugh_map[i][j].code, neighbors[k]->code));
+                karnaugh_map[i][j].amount_of_meetings++;
+                neighbors[k]->amount_of_meetings++;
+            }
+            if (neighbors[k]->amount_of_meetings < minimum_meetings.first) {
+                    minimum_meetings.first = neighbors[k]->amount_of_meetings;
+                    minimum_meetings.second = neighbors[k];
+            }
+        }
+        if (!overlap) {
+            result.push_back(implicant(karnaugh_map[i][j].code, minimum_meetings.second->code));
+            karnaugh_map[i][j].amount_of_meetings++;
+            minimum_meetings.second->amount_of_meetings++;
+        }
+    }
+}
+vector<vector<pair<int, bool>>> from_map_to_implicants(vector<vector<map_square>> &karnaugh_map)
+{
+    vector<vector<pair<int, bool>>> result;
+    for (int j = 0; j < karnaugh_map[0].size(); j++)
+    {
+        for (int i = 0; i < karnaugh_map.size(); i++)
+        {
+            if (karnaugh_map[i][j].sign && karnaugh_map[i][j].amount_of_meetings == 0) {
+                compare_with_neighbors(i, j, karnaugh_map, result);
+            }
+        }
+    }
+    return result;
+}
+pair<string, string> table_method(vector<vector<bool>>& sdnfprototype, vector<vector<bool>>& sknfprototype)
+{
+    vector<vector<map_square>> karnaugh_map = karnaugh_map_builder_sdnf(sdnfprototype, sknfprototype);
+    vector<vector<pair<int, bool>>> result = from_map_to_implicants(karnaugh_map);
+    string minimized_sdnf = from_implicants_to_sdnf_string(result);
+    pair<string, string> result_min(minimized_sdnf, minimized_sdnf);
+    return result_min;
+}
+
+
 void our_own_input()
 {
     cout << "Choose the way you want function to be entered : 1)Index form :: 2)Numeral form :: 3)Your own input ";
@@ -701,6 +829,9 @@ void our_own_input()
         output = calculate_table_method(inputresult.first, inputresult.second);
         break;
     case 3:
+        sdnfprint(inputresult.first);
+        sknfprint(inputresult.second);
+        output = table_method(inputresult.first, inputresult.second);
         break;
     default: cout << "Enter something possible to work with!" << endl;
         break;
@@ -709,7 +840,6 @@ void our_own_input()
     cout << "Minimized sknf form : " << output.second << endl;
 }
  
-
 //
 int main()
 {
@@ -783,5 +913,6 @@ int main()
     //    cout << endl << endl;
     //}*/
     ////our_own_input();
+    system("pause");
     return 0;
 }

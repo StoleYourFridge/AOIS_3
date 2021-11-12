@@ -8,7 +8,6 @@
 using namespace std;
 
 //traslation functions
-
 bool checker_for_own_input(string& function)
 {
     int counter = 0, i = 0;
@@ -383,23 +382,20 @@ string from_implicants_to_sknf_string(vector<vector<pair<int, bool>>>& sknf_impl
 
 bool checker_for_coincidence(vector<bool>& term_one, vector<bool>& term_two)
 {
-    int counter_of_coincidence = 0;
-    //if (term_one[0] == term_two[0]) counter_of_coincidence++;
-    //if (term_one[1] == term_two[1]) counter_of_coincidence++;
-    //if (term_one[2] == term_two[2]) counter_of_coincidence++;
+    int counter_of_coincidence = 0, neccesary_coincidence;
+    if (term_one.size() >= term_two.size()) neccesary_coincidence = term_one.size() - 1;
+    else neccesary_coincidence = term_two.size() - 1;
     for (int i = 0; i < term_one.size(); i++)
     {
-        if(term_one[i] == term_two[i]) counter_of_coincidence++;
+        if(i < term_two.size() && term_one[i] == term_two[i]) counter_of_coincidence++;
     }
-    if (counter_of_coincidence == (term_one.size() - 1)) return true;
+    if (counter_of_coincidence == neccesary_coincidence) return true;
     else return false;
 }
 vector<pair<int, bool>> implicant(vector<bool>& term_one, vector<bool>& term_two)
 {
     vector<pair<int, bool>> implicant;
     pair<int, bool> example;
-    cout << endl << "term1 : " << term_one[0] << " " << term_one[1] << " " << term_one[2] << endl;
-    cout << endl << "term2 : " << term_two[0] << " " << term_two[1] << " " << term_two[2] << endl;
     for (int i = 0; i < term_one.size(); i++)
     {
         if (term_one[i] == term_two[i]) {
@@ -507,7 +503,6 @@ pair<string, string> calculate_method(vector<vector<bool>>& sdnfprototype, vecto
     sknf_implicants = gluing(sknfprototype);
     string current_sdnf = from_implicants_to_sdnf_string(sdnf_implicants);
     string current_sknf = from_implicants_to_sknf_string(sknf_implicants);
-    cout << current_sdnf << endl << current_sknf << endl;
     calculate_method_from_skdnf(sdnf_implicants, true);
     calculate_method_from_skdnf(sknf_implicants, false);
     string minimized_sdnf = from_implicants_to_sdnf_string(sdnf_implicants);
@@ -641,7 +636,6 @@ pair<string, string> calculate_table_method(vector<vector<bool>>& sdnfprototype,
     pair<vector<vector<bool>>, vector<int>> table_and_one_cross_implicants_sknf = table_of_crosses(sknfprototype, sknf_implicants);
     string current_sdnf = from_implicants_to_sdnf_string(sdnf_implicants);
     string current_sknf = from_implicants_to_sknf_string(sknf_implicants);
-    cout << current_sdnf << endl << current_sknf << endl;
     vector<int> exception_sdnf = result_exeption(table_and_one_cross_implicants_sdnf.first, table_and_one_cross_implicants_sdnf.second);
     vector<int> exception_sknf = result_exeption(table_and_one_cross_implicants_sknf.first, table_and_one_cross_implicants_sknf.second);
     exceptioned_implicants(sdnf_implicants, exception_sdnf);
@@ -702,7 +696,7 @@ vector<vector<map_square>> karnaugh_map_builder_sdnf(vector<vector<bool>>& sdnfp
     }
     return Karnaugh_map;
 }
-vector<map_square*> neighbor_builder(int i, int j, vector<vector<map_square>>& karnaugh_map)
+vector<map_square*> neighbor_builder(int i, int j, vector<vector<map_square>>& karnaugh_map, bool is_it_sdnf)
 {
     vector<map_square*> neighbors;
     int up, down, left, right;
@@ -714,15 +708,15 @@ vector<map_square*> neighbor_builder(int i, int j, vector<vector<map_square>>& k
     else up = j - 1;
     if (j == karnaugh_map[0].size() - 1) down = 0;
     else down = j + 1;
-    if (karnaugh_map[left][j].sign) neighbors.push_back(&karnaugh_map[left][j]);
-    if (karnaugh_map[i][down].sign) neighbors.push_back(&karnaugh_map[i][down]);
-    if (karnaugh_map[right][j].sign) neighbors.push_back(&karnaugh_map[right][j]);
-    if (karnaugh_map[i][up].sign) neighbors.push_back(&karnaugh_map[i][up]);
+    if (karnaugh_map[left][j].sign == is_it_sdnf) neighbors.push_back(&karnaugh_map[left][j]);
+    if (karnaugh_map[i][down].sign == is_it_sdnf) neighbors.push_back(&karnaugh_map[i][down]);
+    if (karnaugh_map[right][j].sign == is_it_sdnf) neighbors.push_back(&karnaugh_map[right][j]);
+    if (karnaugh_map[i][up].sign == is_it_sdnf) neighbors.push_back(&karnaugh_map[i][up]);
     return neighbors;
 }
-void compare_with_neighbors(int i, int j, vector<vector<map_square>>& karnaugh_map, vector<vector<pair<int, bool>>> &result)
+void compare_with_neighbors(int i, int j, vector<vector<map_square>>& karnaugh_map, vector<vector<pair<int, bool>>> &result, bool is_it_sdnf)
 {
-    vector<map_square*> neighbors = neighbor_builder(i, j, karnaugh_map);
+    vector<map_square*> neighbors = neighbor_builder(i, j, karnaugh_map, is_it_sdnf);
     if (neighbors.size() == 0) {
         result.push_back(implicant(karnaugh_map[i][j].code, karnaugh_map[i][j].code));
     }
@@ -749,30 +743,276 @@ void compare_with_neighbors(int i, int j, vector<vector<map_square>>& karnaugh_m
         }
     }
 }
-vector<vector<pair<int, bool>>> from_map_to_implicants(vector<vector<map_square>> &karnaugh_map)
+vector<vector<pair<int, bool>>> from_map_to_implicants(vector<vector<map_square>> &karnaugh_map, bool is_it_sdnf)
 {
     vector<vector<pair<int, bool>>> result;
     for (int j = 0; j < karnaugh_map[0].size(); j++)
     {
         for (int i = 0; i < karnaugh_map.size(); i++)
         {
-            if (karnaugh_map[i][j].sign && karnaugh_map[i][j].amount_of_meetings == 0) {
-                compare_with_neighbors(i, j, karnaugh_map, result);
+            if (karnaugh_map[i][j].sign == is_it_sdnf && karnaugh_map[i][j].amount_of_meetings == 0) {
+                compare_with_neighbors(i, j, karnaugh_map, result, is_it_sdnf);
             }
         }
     }
     return result;
 }
+pair<string, string> res_table_method(vector<vector<bool>>& sdnfprototype, vector<vector<bool>>& sknfprototype)
+{
+    vector<vector<pair<int, bool>>> sdnf_implicants, sknf_implicants;
+    sdnf_implicants = gluing(sdnfprototype);
+    sknf_implicants = gluing(sknfprototype);
+    pair<vector<vector<bool>>, vector<int>> table_and_one_cross_implicants_sdnf = table_of_crosses(sdnfprototype, sdnf_implicants);
+    pair<vector<vector<bool>>, vector<int>> table_and_one_cross_implicants_sknf = table_of_crosses(sknfprototype, sknf_implicants);
+    string current_sdnf = from_implicants_to_sdnf_string(sdnf_implicants);
+    string current_sknf = from_implicants_to_sknf_string(sknf_implicants);
+    vector<int> exception_sdnf = result_exeption(table_and_one_cross_implicants_sdnf.first, table_and_one_cross_implicants_sdnf.second);
+    vector<int> exception_sknf = result_exeption(table_and_one_cross_implicants_sknf.first, table_and_one_cross_implicants_sknf.second);
+    exceptioned_implicants(sdnf_implicants, exception_sdnf);
+    exceptioned_implicants(sknf_implicants, exception_sknf);
+    string minimized_sdnf = from_implicants_to_sdnf_string(sdnf_implicants);
+    string minimized_sknf = from_implicants_to_sknf_string(sknf_implicants);
+    pair<string, string> result(minimized_sdnf, minimized_sknf);
+    return result;
+}
 pair<string, string> table_method(vector<vector<bool>>& sdnfprototype, vector<vector<bool>>& sknfprototype)
 {
     vector<vector<map_square>> karnaugh_map = karnaugh_map_builder_sdnf(sdnfprototype, sknfprototype);
-    vector<vector<pair<int, bool>>> result = from_map_to_implicants(karnaugh_map);
-    string minimized_sdnf = from_implicants_to_sdnf_string(result);
-    pair<string, string> result_min(minimized_sdnf, minimized_sdnf);
+    vector<vector<pair<int, bool>>> sdnf_result = from_map_to_implicants(karnaugh_map, true);
+    vector<vector<pair<int, bool>>> sknf_result = from_map_to_implicants(karnaugh_map, false);
+    string minimized_sdnf = from_implicants_to_sdnf_string(sdnf_result);
+    string minimized_sknf = from_implicants_to_sknf_string(sknf_result);
+    pair<string, string> result_min = res_table_method(sdnfprototype, sknfprototype);
     return result_min;
 }
 
-
+bool Test1()
+{
+    vector<vector<bool>> sdnfprototype{ {0,0,1}, {1,1,1}, {1,0,1}, {1,0,0} }, sknfprotatype{ {0,0,0}, {0,1,1}, {0,1,0}, {1,1,0} };
+    pair<string, string> current_result = calculate_method(sdnfprototype, sknfprotatype);
+    pair<string, string> real_result;
+    real_result.first = "(!b*c) +(a*c) +(a*!b) ";
+    real_result.second = "(a+c) *(a+!b) *(!b+c) ";
+    if (current_result.first == real_result.first && current_result.second == real_result.second) {
+        cout << "Test1 correct!" << endl;
+        return true;
+    }
+    else {
+        cout << "Test1 incorrect!" << endl;
+        return false;
+    }
+    return true;
+}
+bool Test2()
+{
+    vector<vector<bool>> sdnfprototype{ {0,0,1}, {1,1,1}, {1,0,1}, {1,0,0} }, sknfprotatype{ {0,0,0}, {0,1,1}, {0,1,0}, {1,1,0} };
+    pair<string, string> current_result = calculate_table_method(sdnfprototype, sknfprotatype);
+    pair<string, string> real_result;
+    real_result.first = "(!b*c) +(a*c) +(a*!b) ";
+    real_result.second = "(a+c) *(a+!b) *(!b+c) ";
+    if (current_result.first == real_result.first && current_result.second == real_result.second) {
+        cout << "Test2 correct!" << endl;
+        return true;
+    }
+    else {
+        cout << "Test2 incorrect!" << endl;
+        return false;
+    }
+    return true;
+}
+bool Test3()
+{
+    vector<vector<bool>> sdnfprototype{ {0,0,1}, {1,1,1}, {1,0,1}, {1,0,0} }, sknfprotatype{ {0,0,0}, {0,1,1}, {0,1,0}, {1,1,0} };
+    pair<string, string> current_result = table_method(sdnfprototype, sknfprotatype);
+    pair<string, string> real_result;
+    real_result.first = "(!b*c) +(a*c) +(a*!b) ";
+    real_result.second = "(a+c) *(a+!b) *(!b+c) ";
+    if (current_result.first == real_result.first && current_result.second == real_result.second) {
+        cout << "Test3 correct!" << endl;
+        return true;
+    }
+    else {
+        cout << "Test3 incorrect!" << endl;
+        return false;
+    }
+    return true;
+}
+bool Test4()
+{
+    vector<vector<bool>> sdnfprototype{ {0,0,1}, {1,0,0} }, sknfprotatype{ {0,0,0}, {0,1,1}, {0,1,0}, {1,1,0}, {1,1,1}, {1,0,1}, };
+    pair<string, string> current_result = calculate_method(sdnfprototype, sknfprotatype);
+    pair<string, string> real_result;
+    real_result.first = "(!a*!b*c) +(a*!b*!c) ";
+    real_result.second = "(a+c) *(!b+!c) *(!b+c) *(!a+!c) ";
+    if (current_result.first == real_result.first && current_result.second == real_result.second) {
+        cout << "Test4 correct!" << endl;
+        return true;
+    }
+    else {
+        cout << "Test4 incorrect!" << endl;
+        return false;
+    }
+    return true;
+}
+bool Test5()
+{
+    vector<vector<bool>> sdnfprototype{ {0,0,1}, {1,0,0} }, sknfprotatype{ {0,0,0}, {0,1,1}, {0,1,0}, {1,1,0}, {1,1,1}, {1,0,1}, };
+    pair<string, string> current_result = calculate_table_method(sdnfprototype, sknfprotatype);
+    pair<string, string> real_result;
+    real_result.first = "(!a*!b*c) +(a*!b*!c) ";
+    real_result.second = "(a+c) *(!b+!c) *(!a+!b) *(!a+!c) ";
+    if (current_result.first == real_result.first && current_result.second == real_result.second) {
+        cout << "Test5 correct!" << endl;
+        return true;
+    }
+    else {
+        cout << "Test5 incorrect!" << endl;
+        return false;
+    }
+    return true;
+}
+bool Test6()
+{
+    vector<vector<bool>> sdnfprototype{ {0,0,1}, {1,0,0} }, sknfprotatype{ {0,0,0}, {0,1,1}, {0,1,0}, {1,1,0}, {1,1,1}, {1,0,1}, };
+    pair<string, string> current_result = table_method(sdnfprototype, sknfprotatype);
+    pair<string, string> real_result;
+    real_result.first = "(!a*!b*c) +(a*!b*!c) ";
+    real_result.second = "(a+c) *(!b+!c) *(!a+!b) *(!a+!c) ";
+    if (current_result.first == real_result.first && current_result.second == real_result.second) {
+        cout << "Test6 correct!" << endl;
+        return true;
+    }
+    else {
+        cout << "Test6 incorrect!" << endl;
+        return false;
+    }
+    return true;
+}
+bool Test7()
+{
+    string function = "!((!a+!b)*!(!a*!c))";
+    pair< vector<vector<bool>>, vector<vector<bool >>> inputresult = transformator(function);
+    pair<string, string> current_result = calculate_method(inputresult.first, inputresult.second);
+    pair<string, string> real_result;
+    real_result.first = "(!a*!c) +(b*!c) +(a*b) ";
+    real_result.second = "(a+!c) *(!a+b) ";
+    if (current_result.first == real_result.first && current_result.second == real_result.second) {
+        cout << "Test7 correct!" << endl;
+        return true;
+    }
+    else {
+        cout << "Test7 incorrect!" << endl;
+        return false;
+    }
+    return true;
+}
+bool Test8()
+{
+    string function = "!((!a+!b)*!(!a*!c))";
+    pair< vector<vector<bool>>, vector<vector<bool >>> inputresult = transformator(function);
+    pair<string, string> current_result = calculate_table_method(inputresult.first, inputresult.second);
+    pair<string, string> real_result;
+    real_result.first = "(!a*!c) +(a*b) ";
+    real_result.second = "(a+!c) *(!a+b) ";
+    if (current_result.first == real_result.first && current_result.second == real_result.second) {
+        cout << "Test8 correct!" << endl;
+        return true;
+    }
+    else {
+        cout << "Test8 incorrect!" << endl;
+        return false;
+    }
+    return true;
+}
+bool Test9()
+{
+    string function = "!((!a+!b)*!(!a*!c))";
+    pair< vector<vector<bool>>, vector<vector<bool >>> inputresult = transformator(function);
+    pair<string, string> current_result = table_method(inputresult.first, inputresult.second);
+    pair<string, string> real_result;
+    real_result.first = "(!a*!c) +(a*b) ";
+    real_result.second = "(a+!c) *(!a+b) ";
+    if (current_result.first == real_result.first && current_result.second == real_result.second) {
+        cout << "Test9 correct!" << endl;
+        return true;
+    }
+    else {
+        cout << "Test9 incorrect!" << endl;
+        return false;
+    }
+    return true;
+}
+bool Test10()
+{
+    string function = "!((!a+!b)*!(!a*c))";
+    pair< vector<vector<bool>>, vector<vector<bool >>> inputresult = transformator(function);
+    pair<string, string> current_result = calculate_method(inputresult.first, inputresult.second);
+    pair<string, string> real_result;
+    real_result.first = "(!a*c) +(a*b) ";
+    real_result.second = "(a+c) *(b+c) *(!a+b) ";
+    if (current_result.first == real_result.first && current_result.second == real_result.second) {
+        cout << "Test10 correct!" << endl;
+        return true;
+    }
+    else {
+        cout << "Test10 incorrect!" << endl;
+        return false;
+    }
+    return true;
+}
+bool Test11()
+{
+    string function = "!((!a+!b)*!(!a*c))";
+    pair< vector<vector<bool>>, vector<vector<bool >>> inputresult = transformator(function);
+    pair<string, string> current_result = calculate_table_method(inputresult.first, inputresult.second);
+    pair<string, string> real_result;
+    real_result.first = "(!a*c) +(a*b) ";
+    real_result.second = "(a+c) *(!a+b) ";
+    if (current_result.first == real_result.first && current_result.second == real_result.second) {
+        cout << "Test11 correct!" << endl;
+        return true;
+    }
+    else {
+        cout << "Test11 incorrect!" << endl;
+        return false;
+    }
+    return true;
+}
+bool Test12()
+{
+    string function = "!((!a+!b)*!(!a*c))";
+    pair< vector<vector<bool>>, vector<vector<bool >>> inputresult = transformator(function);
+    pair<string, string> current_result = table_method(inputresult.first, inputresult.second);
+    pair<string, string> real_result;
+    real_result.first = "(!a*c) +(a*b) ";
+    real_result.second = "(a+c) *(!a+b) ";
+    if (current_result.first == real_result.first && current_result.second == real_result.second) {
+        cout << "Test12 correct!" << endl;
+        return true;
+    }
+    else {
+        cout << "Test12 incorrect!" << endl;
+        return false;
+    }
+    return true;
+}
+void tests()
+{
+    int correct_counter = 0;
+    correct_counter += Test1();
+    correct_counter += Test2();
+    correct_counter += Test3();
+    correct_counter += Test4();
+    correct_counter += Test5();
+    correct_counter += Test6();
+    correct_counter += Test7();
+    correct_counter += Test8();
+    correct_counter += Test9();
+    correct_counter += Test10();
+    correct_counter += Test11();
+    correct_counter += Test12();
+    if (correct_counter == 12) cout << "All tests passed correctly!" << endl;
+}
 void our_own_input()
 {
     cout << "Choose the way you want function to be entered : 1)Index form :: 2)Numeral form :: 3)Your own input ";
@@ -809,8 +1049,10 @@ void our_own_input()
             cout << "Enter something possible to work with!" << endl;
             return;
         }
+        inputresult = transformator(own_function);
         break;
     default: cout << "Enter something possible to work with!" << endl;
+        return;
         break;
     }
     int choice_for_method;
@@ -834,85 +1076,29 @@ void our_own_input()
         output = table_method(inputresult.first, inputresult.second);
         break;
     default: cout << "Enter something possible to work with!" << endl;
+        return;
         break;
     }
     cout << "Minimized sdnf form : " << output.first << endl;
     cout << "Minimized sknf form : " << output.second << endl;
 }
  
-//
 int main()
 {
-    our_own_input();
-    //vector<vector<bool>> sdnfprototype{ {0,0,0}, {0,0,1}, {0,1,0}, {1,0,0}, {1,1,0}, {1,1,1} };
-    //vector<vector<pair<int, bool>>> implicants = gluing(sdnfprototype);
-    //for (int i = 0; i < implicants.size(); i++)
-    //{
-    //    cout << "(";
-    //    for (int j = 0; j < implicants[i].size(); j++)
-    //    {
-    //        //cout << implicants[i][j].second << " <- " << implicants[i][j].first << " , ";
-    //        if (implicants[i][j].first == 0) {
-    //            if (implicants[i][j].second) cout << "a";
-    //            else cout << "!a";
-    //        }
-    //        else if (implicants[i][j].first == 1) {
-    //            if (implicants[i][j].second) cout << "b";
-    //            else cout << "!b";
-    //        }
-    //        else if (implicants[i][j].first == 2) {
-    //            if (implicants[i][j].second) cout << "c";
-    //            else cout << "!c";
-    //        }
-    //        if (j != implicants[i].size() - 1) cout << ",";
-    //    }
-    //    cout << ") ";
-    //}
-    //cout << endl << endl;
-    //pair<vector<vector<bool>>, vector<int>> a = table_of_crosses(sdnfprototype, implicants);
-    //vector<int> exception = result_exeption(a.first, a.second);
-    //vector<vector<pair<int, bool>>> result_implicants;
-    //for (int i = 0; i < implicants.size(); i++)
-    //{
-    //    bool sign = true;
-    //    for (int j = 0; j < exception.size(); j++)
-    //    {
-    //        if (i == exception[j]) sign = false;
-    //    }
-    //    if (sign) result_implicants.push_back(implicants[i]);
-    //}
-    //implicants = result_implicants;
-    ////calculate_method_from_skdnf(implicants, true);
-    //for (int i = 0; i < implicants.size(); i++)
-    //{
-    //    cout << "(";
-    //    for (int j = 0; j < implicants[i].size(); j++)
-    //    {   
-    //        if (implicants[i][j].first == 0) {
-    //            if (implicants[i][j].second) cout << "a";
-    //            else cout << "!a";
-    //        }
-    //        else if (implicants[i][j].first == 1) {
-    //            if (implicants[i][j].second) cout << "b";
-    //            else cout << "!b";
-    //        }
-    //        else if (implicants[i][j].first == 2) {
-    //            if (implicants[i][j].second) cout << "c";
-    //            else cout << "!c";
-    //        }
-    //        if (j != implicants[i].size() - 1) cout << ",";
-    //    }
-    //    cout << ") ";
-    //}
-    ///*for (int i = 0; i < term.size(); i++)
-    //{
-    //    for (int j = 0; j < term[i].size(); j++)
-    //    {
-    //        cout << term[i][j].second << ",";
-    //    }
-    //    cout << endl << endl;
-    //}*/
-    ////our_own_input();
+    int choice;
+    cout << "1) Tests :: 2) Own input : ";
+    cin >> choice;
+    switch (choice)
+    {
+    case 1:
+        tests();
+        break;
+    case 2:
+        our_own_input();
+        break;
+    default: cout << "Enter something possible to work with!" << endl;
+        break;
+    }
     system("pause");
     return 0;
 }

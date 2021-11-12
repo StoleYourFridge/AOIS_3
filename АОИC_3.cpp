@@ -1,4 +1,5 @@
-﻿#include <iostream>
+﻿#include "АОИС_3.h"
+#include <iostream>
 #include <vector>
 #include <string>
 #include <stack>
@@ -646,12 +647,6 @@ pair<string, string> calculate_table_method(vector<vector<bool>>& sdnfprototype,
     return result;
 }
 
-struct map_square
-{
-    bool sign;
-    int amount_of_meetings = 0;
-    vector<bool> code;
-};
 bool is_there_one_checker(vector<bool>vertical, vector<bool> horizontal, vector<vector<bool>>& sdnfprototype, vector<bool>&is_there_one)
 {
     for (int i = 0; i < vertical.size(); i++) is_there_one.push_back(vertical[i]);
@@ -1083,22 +1078,3 @@ void our_own_input()
     cout << "Minimized sknf form : " << output.second << endl;
 }
  
-int main()
-{
-    int choice;
-    cout << "1) Tests :: 2) Own input : ";
-    cin >> choice;
-    switch (choice)
-    {
-    case 1:
-        tests();
-        break;
-    case 2:
-        our_own_input();
-        break;
-    default: cout << "Enter something possible to work with!" << endl;
-        break;
-    }
-    system("pause");
-    return 0;
-}
